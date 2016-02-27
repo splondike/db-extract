@@ -1,0 +1,24 @@
+database:
+   type: "mysql"
+   params:
+      username: "root"
+      password: "root"
+      dbname: "extract-test"
+
+# Array of 4 tuples representing the foreign key relations:
+# (table1, column1, table2, column2)
+#
+# You don't need to repeat yourself both ways (i.e. you only
+# have to say of of blogs.author_id -> authors.id OR
+# authors.id -> blogs.author_id)
+references: 
+   - 
+     - blogs
+     - author_id
+     - authors
+     - id
+   - 
+     - comments
+     - blog_id
+     - blogs
+     - id

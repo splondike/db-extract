@@ -1,0 +1,8 @@
+# Dev stuff
+*.swp
+
+# Build stuff
+dist/
+.stack-work/
+*.o
+*.hi
