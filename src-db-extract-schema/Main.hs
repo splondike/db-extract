@@ -13,19 +13,20 @@ import qualified ExtractSchema.Program as P
 main = do
    rawArgs <- getArgs
    case GO.getOpt GO.Permute options rawArgs of
-        ([configPath], [], []) -> processInput configPath
+        ([configPath, inferrFks], [], []) -> processInput configPath False
+        ([configPath], [], []) -> processInput configPath True
         ([], _, []) -> exitWithError ""
         (_, _, errs) -> exitWithError $ concat errs
    where
-      processInput configPath = do
+      processInput configPath inferrFks = do
          eitherContents <- YAML.decodeFileEither configPath
          case eitherContents of
               Left ex -> exitWithError $ "Problem with config file: " ++ YAML.prettyPrintParseException ex ++ "\n"
               Right config -> buildDb config >>= \db->
-                 buildNewConfig db config
+                 buildNewConfig db config inferrFks
 
-      buildNewConfig db config = do
-         foreignKeys <- P.processDatabase db
+      buildNewConfig db config inferrFks = do
+         foreignKeys <- P.processDatabase db inferrFks
          let newConfig = config{C.configReferences = toList foreignKeys}
          putStrLn $ unpack . decodeUtf8 $ YAML.encode newConfig
 
@@ -39,8 +40,9 @@ main = do
 
 exitWithError s = putStr (s ++ usage) >> (exitWith $ ExitFailure 1)
 
-options = [config]
+options = [config, disableInfer]
    where
-      config = GO.Option "-c" ["config"] (GO.ReqArg id "config.yml") "The configuration file containing DB connection and foreign key information."
+      config = GO.Option "c" ["config"] (GO.ReqArg id "config.yml") "The configuration file containing DB connection and foreign key information."
+      disableInfer = GO.Option "" ["disable-inference"] (GO.NoArg "") "Disable inference of foreign keys based on column name (use only explicit constraints)"
 
 usage = GO.usageInfo "Usage: db-extract --config <database-config.yml>\n\nBuild a config file containing deduced reference information for the database described in the given config" options

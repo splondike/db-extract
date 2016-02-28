@@ -11,11 +11,12 @@ import qualified Data.Set as S
 import qualified Control.Concurrent.MVar as MV
 
 import Config(ForeignKey(..))
-import DataLayer.Types (TableSchema(..), TableColumn(..))
+import DataLayer.Types (TableSchema(..), TableColumn(..), TableFKConstraint(..))
 import qualified ExtractSchema.Program as P
 import qualified DataLayer as DL
 
 allTests = testGroup "ExtractData Tests" [
+   testCase "Can disable FK inference" testTogglesInference,
    testCase "Finds foreign keys by *_id with pluralized tables" testFindsPluralByIdSuffix,
    testCase "Finds foreign keys by *_id with *ies tables" testFindsByIesTables,
    testCase "Finds foreign keys by *_id with singular tables" testFindsSingularByIdSuffix,
@@ -24,10 +25,20 @@ allTests = testGroup "ExtractData Tests" [
    testCase "Ignores column case" testIgnoresTextCase,
    testCase "Handles missing table matches with *_id suffix" testHandlesMissing,
    testCase "Handles missing id on referenced table" testHandlesMissingId,
-   testCase "Handles self references" testHandlesSelfReferences]
+   testCase "Handles self references" testHandlesSelfReferences,
+   testCase "Includes explicit foreign keys" testIncludesForeignKeys]
+
+testTogglesInference = do
+   result <- P.processDatabase db False
+   assertEqual "Finds expected foreign keys" expected result
+   where
+      db = buildFromMap [
+         ("blogs", ["id", "author_id", "title"]),
+         ("authors", ["id", "org_role_id", "name"])]
+      expected = S.fromList []
 
 testFindsPluralByIdSuffix = do
-   result <- P.processDatabase db
+   result <- P.processDatabase db True
    assertEqual "Finds expected foreign keys" expected result
    where
       db = buildFromMap [
@@ -39,7 +50,7 @@ testFindsPluralByIdSuffix = do
          ForeignKey "authors" "org_role_id" "org_roles" "id"]
 
 testFindsByIesTables = do
-   result <- P.processDatabase db
+   result <- P.processDatabase db True
    assertEqual "Finds expected foreign keys" expected result
    where
       db = buildFromMap [
@@ -49,7 +60,7 @@ testFindsByIesTables = do
          ForeignKey "todos" "activity_id" "activities" "id"]
 
 testFindsSingularByIdSuffix = do
-   result <- P.processDatabase db
+   result <- P.processDatabase db True
    assertEqual "Finds expected foreign keys" expected result
    where
       db = buildFromMap [
@@ -61,7 +72,7 @@ testFindsSingularByIdSuffix = do
          ForeignKey "author" "org_role_id" "org_role" "id"]
 
 testPrefersLongestMatch = do
-   result <- P.processDatabase db
+   result <- P.processDatabase db True
    assertEqual "Finds expected foreign keys" expected result
    where
       db = buildFromMap [
@@ -76,7 +87,7 @@ testPrefersLongestMatch = do
          ForeignKey "contributors" "secondary_role_id" "roles" "id"]
 
 testFindsMultipleInOneTable = do
-   result <- P.processDatabase db
+   result <- P.processDatabase db True
    assertEqual "Finds expected foreign keys" expected result
    where
       db = buildFromMap [
@@ -88,7 +99,7 @@ testFindsMultipleInOneTable = do
          ForeignKey "blogs" "asset_id" "assets" "id"]
 
 testIgnoresTextCase = do
-   result <- P.processDatabase db
+   result <- P.processDatabase db True
    assertEqual "Finds expected foreign keys" expected result
    where
       db = buildFromMap [
@@ -100,7 +111,7 @@ testIgnoresTextCase = do
          ForeignKey "authors" "org_role_id" "org_roles" "ID"]
 
 testHandlesMissing = do
-   result <- P.processDatabase db
+   result <- P.processDatabase db True
    assertEqual "Finds expected foreign keys" expected result
    where
       db = buildFromMap [
@@ -108,7 +119,7 @@ testHandlesMissing = do
       expected = S.fromList []
 
 testHandlesMissingId = do
-   result <- P.processDatabase db
+   result <- P.processDatabase db True
    assertEqual "Finds expected foreign keys" expected result
    where
       db = buildFromMap [
@@ -117,7 +128,7 @@ testHandlesMissingId = do
       expected = S.fromList []
 
 testHandlesSelfReferences = do
-   result <- P.processDatabase db
+   result <- P.processDatabase db True
    assertEqual "Finds expected foreign keys" expected result
    where
       db = buildFromMap [
@@ -125,8 +136,26 @@ testHandlesSelfReferences = do
       expected = S.fromList [
          ForeignKey "blogs" "blog_id" "blogs" "id"]
 
+testIncludesForeignKeys = do
+   result <- P.processDatabase db True
+   assertEqual "Finds expected foreign keys" expected result
+   where
+      db = buildFromMapWithFks cols fks
+      cols = [("blogs", ["id", "author_id", "title"]),
+         ("authors", ["id", "name"]),
+         ("admirers", ["id", "author_name"])]
+      fks = [("admirers", [("author_name", "authors", "name")])]
+      expected = S.fromList [
+         ForeignKey "blogs" "author_id" "authors" "id",
+         ForeignKey "admirers" "author_name" "authors" "name"]
+
 buildFromMap :: [(String, [String])] -> DL.DBFetcher
-buildFromMap database = DL.DBFetcher{
+buildFromMap database = buildFromMapWithFks database []
+
+buildFromMapWithFks :: [(String, [String])] -> 
+                       [(String, [(String, String, String)])] ->
+                       DL.DBFetcher
+buildFromMapWithFks database fks = DL.DBFetcher{
                            DL.getByColumn = \_ _ -> return $ Left "Not implemented",
                            DL.testConnection = return True,
                            DL.escapeString = return . id,
@@ -135,5 +164,9 @@ buildFromMap database = DL.DBFetcher{
    where
       gs = return $ Right schemas
       schemas = map makeSchema database
-      makeSchema (name, colNames) = TableSchema (fromString name) (map makeCol colNames)
+      makeSchema (name, colNames) = TableSchema (fromString name) (map makeCol colNames) (getFks name)
+      getFks name = case lookup name fks of
+                         Just triples -> map makeFk triples
+                         Nothing -> []
+      makeFk (lc, rt, rc) = TableFKConstraint (fromString lc) (fromString rt) (fromString rc)
       makeCol = TableColumn . fromString

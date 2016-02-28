@@ -13,9 +13,16 @@ data ResultRow = ResultRow {
 
 data TableSchema = TableSchema {
    schemaName :: BS.ByteString,
-   columns :: [TableColumn]
+   columns :: [TableColumn],
+   foreignKeys :: [TableFKConstraint]
 } deriving (Show)
 
 data TableColumn = TableColumn {
    name :: BS.ByteString
+} deriving (Show)
+
+data TableFKConstraint = TableFKConstraint {
+   localColumn :: BS.ByteString,
+   remoteTable :: BS.ByteString,
+   remoteColumn :: BS.ByteString
 } deriving (Show)

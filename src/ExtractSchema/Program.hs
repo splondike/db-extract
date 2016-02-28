@@ -13,25 +13,37 @@ import qualified Data.Set as S
 
 import Config (ForeignKey(..))
 import qualified DataLayer as DL
-import qualified DataLayer.Types as DT (TableSchema(..), TableColumn(..))
+import qualified DataLayer.Types as DT (TableSchema(..), TableColumn(..), TableFKConstraint(..))
 
-processDatabase :: DL.DBFetcher -> IO (S.Set ForeignKey)
-processDatabase db = fetchSchema >>= return . map toTableDef >>= return . findFks
+processDatabase :: DL.DBFetcher -> Bool -> IO (S.Set ForeignKey)
+processDatabase db inferFks = fetchSchemas >>= return . findFks
    where
-      fetchSchema = DL.getSchema db >>= \schemaE ->
-         case schemaE of
-           Right schema -> return schema
+      fetchSchemas = DL.getSchema db >>= \schemasE ->
+         case schemasE of
+           Right schemas -> return schemas
            Left err -> error err
-      toTableDef schema = (toS $ DT.schemaName schema, map (toS . DT.name) $ DT.columns schema)
-      toS :: BS.ByteString -> String
-      toS = unpack . decodeUtf8
-      findFks :: [TableDef] -> S.Set ForeignKey
-      findFks schemaMap = foldl (processSchema schemaMap) S.empty schemaMap
 
-processSchema :: [TableDef] -> S.Set ForeignKey -> TableDef -> S.Set ForeignKey
-processSchema schemaMap rtn (tableName, cols) = newRtn
+      findFks schemas = S.union (explicitFks schemas) (inferredFks schemas)
+
+      explicitFks schemas = foldToSet (const extractExplicitFks) schemas
+
+      inferredFks schemas
+         | inferFks = foldToSet inferrFksFromCols schemas
+         | otherwise = S.empty
+
+      foldToSet f schemas = foldl (\c i -> S.union c (f schemas i)) S.empty schemas
+
+extractExplicitFks :: DT.TableSchema -> S.Set ForeignKey
+extractExplicitFks schema = S.fromList $ map makeFk fks
    where
-      newRtn = foldl addNewFk rtn colTableTuples
+      fks = DT.foreignKeys schema
+      makeFk (DT.TableFKConstraint lc rt rc) = 
+         ForeignKey localTable (toS lc) (toS rt) (toS rc)
+      localTable = toS $ DT.schemaName schema
+
+inferrFksFromCols :: [DT.TableSchema] -> DT.TableSchema -> S.Set ForeignKey
+inferrFksFromCols schemas currSchema = foldl addNewFk S.empty colTableTuples
+   where
       addNewFk set tuple = S.insert (makeFk tuple) set
       makeFk (localCol, foreignTableName, foreignTableCol) = 
          ForeignKey tableName localCol foreignTableName foreignTableCol
@@ -42,6 +54,10 @@ processSchema schemaMap rtn (tableName, cols) = newRtn
       addMatchingColumns rtn col = case findMatchingCol schemaMap col of
                                         Just match -> match:rtn
                                         Nothing -> rtn
+
+      (tableName, cols) = toTableDef currSchema
+      schemaMap = map toTableDef schemas
+      toTableDef schema = (toS $ DT.schemaName schema, map (toS . DT.name) $ DT.columns schema)
 
 -- | Find the best match for the column in the list of schemas
 findMatchingCol :: [TableDef] -- ^ The schemas to search for a match in
@@ -87,7 +103,11 @@ split delim xs = reverse $ split' [] xs
       process acc (pre, []) = pre:acc
       process acc (pre, post) = split' (pre:acc) (tail post)
 
+toLowerS :: String -> String
 toLowerS = map toLower
+
+toS :: BS.ByteString -> String
+toS = unpack . decodeUtf8
 
 type TableDef = (String, [String])
 type FKRef = (String, String, String)
