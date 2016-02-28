@@ -45,6 +45,6 @@ exitWithError s = putStr (s ++ usage) >> (exitWith $ ExitFailure 1)
 
 options = [config]
    where
-      config = GO.Option "-c" ["config"] (GO.ReqArg id "config.yml") "The configuration file containing DB connection and foreign key information."
+      config = GO.Option "c" ["config"] (GO.ReqArg id "config.yml") "The configuration file containing DB connection and foreign key information."
 
 usage = GO.usageInfo "Usage: db-extract --config <database-config.yml> <tableName> <columnName> <columnValue>\n\nRecursively fetches the foreign key dependencies of the row identified by tableName columnName and columnValue. Connection and foreign key information is passed in via the -c parameter." options
