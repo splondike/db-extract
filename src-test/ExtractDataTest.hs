@@ -18,6 +18,7 @@ import qualified DataLayer as DL
 
 allTests = testGroup "ExtractData Tests" [
    testCase "Fetches foreign keys" testFetchesForeignKeys,
+   testCase "Terminates when there are FK loops" testHandlesFKLoops,
    testCase "Fetches references from other tables" testFetchesReverseForeignKeys,
    testCase "Handles null foreign keys" testHandlesNullForeignKeys,
    testCase "Handles missing references" testHandlesMissingReferences,
@@ -35,6 +36,21 @@ testFetchesForeignKeys = checkMatch expectedIO actualIO
       initialQuery = Query (GetByColumnTemplate "id" "blogs") (fromString "1")
       tableData = [("blogs",   [blogOne, blogTwo]),
                    ("authors", [authorOne])]
+
+testHandlesFKLoops = checkMatch expectedIO actualIO
+   where
+      actualIO = P.processQuery dbFetcher initialQuery fks
+      fks = [ForeignKey "table1" "table2_id" "table2" "id",
+             ForeignKey "table2" "table1_id" "table1" "id"]
+      expectedIO = return $ S.fromList expectedItems
+      expectedItems = [("table1", ResultRow table1Row), ("table2", ResultRow table2Row)]
+
+      dbFetcher = fetchFromMap tableData
+      table1Row = toRow [("id", Just "1"), ("table2_id", Just "1"), ("name", Just "bob")]
+      table2Row = toRow [("id", Just "1"), ("table1_id", Just "1")]
+      initialQuery = Query (GetByColumnTemplate "name" "table1") (fromString "bob")
+      tableData = [("table1",   [table1Row]),
+                   ("table2", [table2Row])]
 
 testFetchesReverseForeignKeys = checkMatch expectedIO actualIO
    where
