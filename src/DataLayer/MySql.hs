@@ -93,6 +93,7 @@ buildConnInfo conf = Right $ foldl applyConfItem defaultConnectInfo conf
       applyConfItem confObj ("username", val) = confObj { connectUser = val }
       applyConfItem confObj ("password", val) = confObj { connectPassword = val }
       applyConfItem confObj ("dbname", val) = confObj { connectDatabase = val }
+      applyConfItem confObj ("host", val) = confObj { connectHost = val }
       applyConfItem confObj ("path", val) = confObj { connectPath = val }
       applyConfItem confObj ("port", val) = confObj { connectPort = (read val) }
       applyConfItem confObj _ = confObj

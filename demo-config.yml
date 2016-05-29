@@ -4,6 +4,9 @@ database:
       username: "root"
       password: "root"
       dbname: "extract-test"
+      # Optional params
+      # host: "localhost" # or "127.0.0.1" if you want to use TCP
+      # port: "3306"
 
 # Array of 4 tuples representing the foreign key relations:
 # (table1, column1, table2, column2)
