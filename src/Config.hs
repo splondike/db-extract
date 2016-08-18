@@ -26,6 +26,8 @@ data ForeignKey = ForeignKey
    String -- ^ The subject column name (e.g. author_id)
    String -- ^ The object table (e.g. authors)
    String -- ^ The object column name (e.g. id)
+   Bool -- ^ True if the relationship should only be 
+        -- traversed in one direction (it's unidirectional)
    deriving (Generic, Show, Ord, Eq)
 
 -- Serialize instances

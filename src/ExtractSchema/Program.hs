@@ -38,7 +38,7 @@ extractExplicitFks schema = S.fromList $ map makeFk fks
    where
       fks = DT.foreignKeys schema
       makeFk (DT.TableFKConstraint lc rt rc) = 
-         ForeignKey localTable (toS lc) (toS rt) (toS rc)
+         ForeignKey localTable (toS lc) (toS rt) (toS rc) True
       localTable = toS $ DT.schemaName schema
 
 inferrFksFromCols :: [DT.TableSchema] -> DT.TableSchema -> S.Set ForeignKey
@@ -46,7 +46,7 @@ inferrFksFromCols schemas currSchema = foldl addNewFk S.empty colTableTuples
    where
       addNewFk set tuple = S.insert (makeFk tuple) set
       makeFk (localCol, foreignTableName, foreignTableCol) = 
-         ForeignKey tableName localCol foreignTableName foreignTableCol
+         ForeignKey tableName localCol foreignTableName foreignTableCol True
 
       colTableTuples :: [FKRef]
       colTableTuples = foldl addMatchingColumns [] cols

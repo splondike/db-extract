@@ -8,20 +8,32 @@ database:
       # host: "localhost" # or "127.0.0.1" if you want to use TCP
       # port: "3306"
 
-# Array of 4 tuples representing the foreign key relations:
-# (table1, column1, table2, column2)
+# Array of 5 tuples representing the foreign key relations:
+# (table1, column1, table2, column2, unidirectional)
 #
-# You don't need to repeat yourself both ways (i.e. you only
-# have to say of of blogs.author_id -> authors.id OR
-# authors.id -> blogs.author_id)
+# The unidirectional flag indicates that the relationship should
+# only be traversed one way. Consider the query "select from blogs
+# where id = 1" where we have blogs and authors.
+#
+# If unidirectional is true, then we pick up the blog row, traverse
+# the relationship to authors, and pick up the author.
+#
+# If unidirectional is false, then we pick up the blog row, traverse
+# the relationship to authors, and pick up the author. We then
+# traverse the relationship back to blogs and pick up all the blogs
+# for that author.
+#
+# Be careful with setting unidirectional to true.
 references: 
    - 
      - blogs
      - author_id
      - authors
      - id
+     - false
    - 
      - comments
      - blog_id
      - blogs
      - id
+     - false

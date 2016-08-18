@@ -78,15 +78,17 @@ findQueries foreignKeys resultsMap = concat $ M.foldMapWithKey inner resultsMap
                                                       Nothing -> c
             newQueries = colQueries $ tableName $ getTemplate query
 
-      colQueries table = getPairs table getFromData ++ getPairs table getToData
-
-      getPairs table extractor = map (build . extractor) $ filter filterFunc foreignKeys
+      colQueries table = fromPairs ++ toPairs
          where
-            filterFunc = ((==table) . (\(a,_,_,_) -> a) . extractor)
-            build (ft, fc, tt, tc) = (fromString fc, GetByColumnTemplate{columnName=tc, tableName=tt})
+            fromPairs = filterBuild $ map getFromData foreignKeys
+            toPairs = filterBuild $ map getToData $ filter unidirectional foreignKeys
+            filterBuild xs = map build $ filter (tableMatches table) xs
 
-      getFromData (ForeignKey ft fc tt tc) = (ft, fc, tt, tc)
-      getToData (ForeignKey ft fc tt tc) = (tt, tc, ft, fc)
+      getFromData (ForeignKey ft fc tt tc _) = (ft, fc, tt, tc)
+      getToData (ForeignKey ft fc tt tc _) = (tt, tc, ft, fc)
+      build (ft, fc, tt, tc) = (fromString fc, GetByColumnTemplate{columnName=tc, tableName=tt})
+      tableMatches table (a,_,_,_) = a==table
+      unidirectional (ForeignKey _ _ _ _ b) = not b
 
 getColumnName :: Query -> BS.ByteString
 getColumnName q = fromString $ columnName $ getTemplate q
