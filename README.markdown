@@ -2,7 +2,7 @@ This program suite aims to extract a subset of the data in a relational database
 
 # Usage
 
-There are two programs included, one of which does the data extraction, and the other that attempts to guess the foreign key relationships in your database. Let's start with data extraction.
+There are three programs included, one of which does the data extraction, another that attempts to guess the foreign key relationships in your database, and a third that can draw the relationships using graphviz. Let's start with data extraction.
 
 ## Data extraction
 
@@ -28,6 +28,12 @@ To use this program, create a config file with the database connection informati
 A new config with the deduced foreign key references will be generated.
 
 At present the system can only handle underscore based naming schemes, and does not use foreign key constraints. Given a column called `primary_activity_id` it will look for a table containing an id column called 'primary\_activity', 'primary\_activitys', 'primary\_activities', 'activity', 'activitys', or 'activities'.
+
+As you can end up with a lot of references in the config file, you can start to lose track of the connections between things. There is a prograph to help with that, you can use it like this:
+
+    ./db-extract-graph config.yml | dot -Tpng -oreferences.png
+
+And you will have a references.png file which shows the relationships in your config file. You will need to have graphviz installed (which provides the dot command).
 
 # Building
 
