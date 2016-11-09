@@ -23,7 +23,7 @@ database:
 # traverse the relationship back to blogs and pick up all the blogs
 # for that author.
 #
-# Be careful with setting unidirectional to true.
+# Be careful with setting unidirectional to false.
 references: 
    - 
      - blogs
