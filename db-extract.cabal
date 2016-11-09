@@ -51,6 +51,15 @@ executable db-extract-schema
                        yaml,
                        text
 
+executable db-extract-graph
+  main-is:             Main.hs
+  hs-source-dirs:      src-db-extract-graph
+  build-depends:       base >= 4.7 && < 5,
+                       db-extract,
+                       containers,
+                       yaml,
+                       text
+
 Test-Suite db-extract-tests
   type:                exitcode-stdio-1.0
   main-is:             Tests.hs
